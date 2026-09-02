@@ -20,100 +20,66 @@
                 <span class="logo-icon">📌</span>
                 <h1>Stay on <span class="highlight">Track</span></h1>
             </div>
-            <p class="tagline">Your dream job, one application at a time 💖</p>
+            <p class="tagline">Track anything — school, work, life 💖</p>
         </header>
 
-        <section class="stats-grid">
-            <div class="stat-card">
-                <span class="stat-icon">📝</span>
-                <div class="stat-info">
-                    <span class="stat-value" id="stat-total">0</span>
-                    <span class="stat-label">Applications</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <span class="stat-icon">⏳</span>
-                <div class="stat-info">
-                    <span class="stat-value" id="stat-applied">0</span>
-                    <span class="stat-label">Applied</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <span class="stat-icon">📊</span>
-                <div class="stat-info">
-                    <span class="stat-value" id="stat-interview">0</span>
-                    <span class="stat-label">Interviews</span>
-                </div>
-            </div>
-            <div class="stat-card">
-                <span class="stat-icon">🥳</span>
-                <div class="stat-info">
-                    <span class="stat-value" id="stat-offer">0</span>
-                    <span class="stat-label">Offers</span>
-                </div>
-            </div>
-        </section>
+        <section class="stats-grid" id="stats"></section>
 
         <section class="main-content">
             <aside class="sidebar card">
-                <h2>➕ Add Application</h2>
+                <h2>➕ Add Item</h2>
                 <form id="app-form">
                     <div class="form-group">
-                        <label for="company">Company</label>
-                        <input type="text" id="company" placeholder="e.g. Google" required>
+                        <label for="title">Title</label>
+                        <input type="text" id="title" placeholder="e.g. Math homework" required>
                     </div>
                     <div class="form-group">
-                        <label for="position">Position</label>
-                        <input type="text" id="position" placeholder="e.g. Frontend Developer" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="status">Status</label>
-                        <select id="status">
-                            <option value="applied">Applied</option>
-                            <option value="interview">Interview</option>
-                            <option value="offer">Offer</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="location">Location</label>
-                        <input type="text" id="location" placeholder="e.g. Remote / NYC">
+                        <label for="status">Column</label>
+                        <select id="status"></select>
                     </div>
                     <div class="form-group">
                         <label for="notes">Notes</label>
-                        <textarea id="notes" rows="3" placeholder="Round 1, recruiter call..."></textarea>
+                        <textarea id="notes" rows="3" placeholder="Details, links, reminders..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary" id="submit-btn">💾 Add Application</button>
+                    <button type="submit" class="btn btn-primary" id="submit-btn">💾 Add Item</button>
                     <button type="button" class="btn btn-secondary hidden" id="cancel-edit">Cancel Edit</button>
                 </form>
             </aside>
 
             <section class="board card">
                 <div class="board-header">
-                    <h2>📋 Your Applications</h2>
-                    <div class="filter-bar">
-                        <button class="chip active" data-filter="all">All</button>
-                        <button class="chip" data-filter="applied">Applied</button>
-                        <button class="chip" data-filter="interview">Interview</button>
-                        <button class="chip" data-filter="offer">Offer</button>
-                        <button class="chip" data-filter="rejected">Rejected</button>
-                    </div>
+                    <h2>🗂 Your Board</h2>
+                    <button type="button" class="btn-settings" id="open-settings">⚙️ Customize Columns</button>
                 </div>
 
                 <div id="search-bar">
-                    <input type="text" id="search" placeholder="🔍 Search by company or position...">
+                    <input type="text" id="search" placeholder="🔍 Search items...">
                 </div>
 
-                <div id="app-list" class="app-list">
-                    <p class="empty-state" id="empty-state">No applications yet. Add your first one! ✨</p>
-                </div>
+                <div id="board" class="board-columns"></div>
             </section>
         </section>
 
         <footer class="footer">
-            <p>Stay on Track 💜 — Made with 💛 &amp; 💖</p>
+            <p>Stay on Track 💜 — Made with 💛 by Sandisiwe Ngcuka </p>
         </footer>
     </main>
+
+    <div class="modal" id="settings-modal">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>⚙️ Customize Your Board</h2>
+                <button type="button" class="modal-close" id="close-settings">✕</button>
+            </div>
+            <p class="modal-hint">Add, rename, or remove your columns. Cards can be moved between columns by dragging or using the ▸ button.</p>
+            <div id="columns-editor"></div>
+            <button type="button" class="btn btn-primary" id="add-column">＋ Add Column</button>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="done-settings">Done</button>
+            </div>
+        </div>
+
+    </div>
 
     <div class="toast" id="toast"></div>
     <script src="script.js"></script>

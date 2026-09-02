@@ -1,44 +1,52 @@
-const STORAGE_KEY = 'stayOnTrackApplications';
+const ITEMS_KEY = 'stayOnTrackItems';
+const COLS_KEY = 'stayOnTrackColumns';
 
-let apps = [];
-let currentFilter = 'all';
+let items = [];
+let columns = [];
+let currentSearch = '';
 let editingId = null;
 
-const STATUS_FLOW = ['applied', 'interview', 'offer'];
-
-const statusLabels = {
-    applied: 'Applied',
-    interview: 'Interview',
-    offer: 'Offer',
-    rejected: 'Rejected'
-
-};
-
-const statusEmojis = {
-    applied: '📝',
-    interview: '📞',
-    offer: '🎉',
-    rejected: '💔'
-};
+const DEFAULT_COLUMNS = [
+    { id: 'todo', name: 'To Do', emoji: '📝' },
+    { id: 'inprogress', name: 'In Progress', emoji: '⏳' },
+    { id: 'done', name: 'Done', emoji: '✅' }
+];
 
 const form = document.getElementById('app-form');
-const appList = document.getElementById('app-list');
-const emptyState = document.getElementById('empty-state');
+const board = document.getElementById('board');
+const stats = document.getElementById('stats');
 const submitBtn = document.getElementById('submit-btn');
 const cancelEditBtn = document.getElementById('cancel-edit');
 const searchInput = document.getElementById('search');
+const statusSelect = document.getElementById('status');
 const toast = document.getElementById('toast');
 
-function loadApps() {
+function loadData() {
     try {
-        apps = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch (e) {
-        apps = [];
+        items = JSON.parse(localStorage.getItem(ITEMS_KEY)) || [];
+    } catch (e) { items = []; }
+    try {
+        columns = JSON.parse(localStorage.getItem(COLS_KEY)) || null;
+    } catch (e) { columns = null; }
+    if (!columns || !Array.isArray(columns) || columns.length === 0) {
+        columns = clone(DEFAULT_COLUMNS);
     }
 }
 
-function saveApps() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+function saveItems() {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+}
+
+function saveColumns() {
+    localStorage.setItem(COLS_KEY, JSON.stringify(columns));
+}
+
+function clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+
+function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
 function showToast(message) {
@@ -48,144 +56,172 @@ function showToast(message) {
     showToast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
-function updateStats() {
-    const total = apps.length;
-    const applied = apps.filter(a => a.status === 'applied').length;
-    const interview = apps.filter(a => a.status === 'interview').length;
-    const offer = apps.filter(a => a.status === 'offer').length;
-    document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-applied').textContent = applied;
-    document.getElementById('stat-interview').textContent = interview;
-    document.getElementById('stat-offer').textContent = offer;
-}
-
 function escapeHTML(str) {
     return String(str).replace(/[&<>"']/g, function (m) {
-        return {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        }[m];
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
     });
 }
 
 function formatDate(dateStr) {
     const d = new Date(dateStr);
     if (isNaN(d)) return '';
-    const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-    return d.toLocaleDateString(undefined, opts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function render() {
-    const query = searchInput.value.trim().toLowerCase();
-    let filtered = apps.filter(a => currentFilter === 'all' || a.status === currentFilter);
+function colById(id) {
+    return columns.find(c => c.id === id);
+}
 
-    if (query) {
-        filtered = filtered.filter(a =>
-            (a.company || '').toLowerCase().includes(query) ||
-            (a.position || '').toLowerCase().includes(query)
-        );
+function renderStats() {
+    const total = items.length;
+    const countFor = (id) => items.filter(i => i.status === id).length;
+
+    let html = `
+        <div class="stat-card">
+            <span class="stat-icon">📦</span>
+            <div class="stat-info">
+                <span class="stat-value">${total}</span>
+                <span class="stat-label">Total</span>
+            </div>
+        </div>
+    `;
+    columns.forEach(c => {
+        html += `
+            <div class="stat-card">
+                <span class="stat-icon">${escapeHTML(c.emoji || '•')}</span>
+                <div class="stat-info">
+                    <span class="stat-value">${countFor(c.id)}</span>
+                    <span class="stat-label">${escapeHTML(c.name)}</span>
+                </div>
+            </div>
+        `;
+    });
+    stats.innerHTML = html;
+}
+
+function renderStatusSelect() {
+    const current = statusSelect.value;
+    statusSelect.innerHTML = columns.map(c =>
+        `<option value="${escapeHTML(c.id)}">${escapeHTML(c.emoji ? c.emoji + ' ' : '')}${escapeHTML(c.name)}</option>`
+    ).join('');
+    if (columns.some(c => c.id === current)) {
+        statusSelect.value = current;
     }
+}
 
-    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+function renderBoard() {
+    renderStatusSelect();
+    renderStats();
 
-    appList.innerHTML = '';
+    const query = currentSearch.trim().toLowerCase();
 
-    if (filtered.length === 0) {
-        emptyState.textContent = apps.length === 0
-            ? 'No applications yet. Add your first one! ✨'
-            : 'No applications match your filter 🔍';
-        appList.appendChild(emptyState);
-    } else {
-        filtered.forEach(app => {
-            const card = document.createElement('div');
-            card.className = `app-card ${app.status}`;
+    board.innerHTML = '';
 
-            const isLastStage = app.status === 'offer' || app.status === 'rejected';
-            const nextLabel = app.status === 'applied' ? 'Interview' :
-                              app.status === 'interview' ? 'Offer' : '';
-            const canPromote = !isLastStage;
+    columns.forEach(col => {
+        const column = document.createElement('div');
+        column.className = 'kanban-column';
+        column.dataset.col = col.id;
 
-            const meta = [];
-            if (app.location) meta.push(`📍 ${escapeHTML(app.location)}`);
-            if (app.createdAt) meta.push(`🗓 ${escapeHTML(formatDate(app.createdAt))}`);
+        let colItems = items.filter(i => i.status === col.id);
+        if (query) {
+            colItems = colItems.filter(i =>
+                (i.title || '').toLowerCase().includes(query) ||
+                (i.notes || '').toLowerCase().includes(query)
+            );
+        }
+        colItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-            card.innerHTML = `
-                <div class="app-info">
-                    <div class="app-company">${escapeHTML(app.company || '')}</div>
-                    <div class="app-position">${escapeHTML(app.position || '')}</div>
-                    <div class="app-meta">
-                        ${meta.map(m => `<span>${m}</span>`).join('')}
-                        <span class="badge badge-${app.status}">${statusEmojis[app.status]} ${statusLabels[app.status]}</span>
-                    </div>
-                    ${app.notes ? `<div class="app-notes">💭 ${escapeHTML(app.notes)}</div>` : ''}
-                </div>
-                <div class="app-actions">
-                    ${canPromote ? `<button class="action-btn promote" data-action="promote" data-id="${app.id}">⬆ ${nextLabel}</button>` : ''}
-                    <button class="action-btn" data-action="edit" data-id="${app.id}">✏️ Edit</button>
-                    <button class="action-btn delete" data-action="delete" data-id="${app.id}">🗑 Delete</button>
-                </div>
-            `;
-            appList.appendChild(card);
+        column.innerHTML = `
+            <div class="column-header">
+                <span class="column-title">${escapeHTML(col.emoji ? col.emoji + ' ' : '')}${escapeHTML(col.name)}</span>
+                <span class="column-count">${colItems.length}</span>
+            </div>
+            <div class="column-body">
+                ${colItems.map(item => renderCard(item, col)).join('') || `<p class="column-empty">Nothing here ✨</p>`}
+            </div>
+        `;
+
+        column.querySelector('.column-body').addEventListener('dragover', (e) => {
+            e.preventDefault();
         });
-    }
+        column.querySelector('.column-body').addEventListener('drop', (e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData('text/plain');
+            setStatus(id, col.id);
+        });
 
-    updateStats();
+        board.appendChild(column);
+    });
 }
 
-function addApp(data) {
-    const app = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        company: data.company,
-        position: data.position,
-        status: data.status || 'applied',
-        location: data.location || '',
+function renderCard(item, col) {
+    const meta = [];
+    if (item.createdAt) meta.push(`🗓 ${formatDate(item.createdAt)}`);
+    const metaStr = meta.length ? `<div class="app-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div>` : '';
+
+    return `
+        <div class="app-card" draggable="true" data-id="${item.id}">
+            <div class="app-info">
+                <div class="app-title">${escapeHTML(item.title || '')}</div>
+                ${metaStr}
+                ${item.notes ? `<div class="app-notes">💭 ${escapeHTML(item.notes)}</div>` : ''}
+            </div>
+            <div class="app-actions">
+                ${nextCol(col) ? `<button class="action-btn promote" data-action="promote" data-id="${item.id}">▸ ${escapeHTML(nextCol(col).name)}</button>` : ''}
+                <button class="action-btn" data-action="edit" data-id="${item.id}">✏️</button>
+                <button class="action-btn delete" data-action="delete" data-id="${item.id}">🗑</button>
+            </div>
+        </div>
+    `;
+}
+
+function nextCol(col) {
+    const idx = columns.findIndex(c => c.id === col.id);
+    return columns[idx + 1] || null;
+}
+
+function setStatus(id, statusId) {
+    const item = items.find(i => i.id === id);
+    if (!item || !colById(statusId)) return;
+    item.status = statusId;
+    saveItems();
+    renderBoard();
+}
+
+function addItem(data) {
+    const item = {
+        id: uid(),
+        title: data.title,
+        status: data.status,
         notes: data.notes || '',
         createdAt: new Date().toISOString()
     };
-    apps.push(app);
-    saveApps();
-    showToast(`Added ${app.company} ✅`);
+    items.push(item);
+    saveItems();
+    showToast(`Added "${item.title}" ✅`);
 }
 
-function updateApp(id, data) {
-    const app = apps.find(a => a.id === id);
-    if (!app) return;
-    app.company = data.company;
-    app.position = data.position;
-    app.status = data.status;
-    app.location = data.location || '';
-    app.notes = data.notes || '';
-    saveApps();
-    showToast(`Updated ${app.company} ✅`);
+function updateItem(id, data) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    item.title = data.title;
+    item.status = data.status;
+    item.notes = data.notes || '';
+    saveItems();
+    showToast(`Updated "${item.title}" ✅`);
 }
 
-function deleteApp(id) {
-    const app = apps.find(a => a.id === id);
-    apps = apps.filter(a => a.id !== id);
-    saveApps();
-    showToast(`Deleted ${app ? app.company : 'application'} 🗑`);
-}
-
-function promoteApp(id) {
-    const app = apps.find(a => a.id === id);
-    if (!app) return;
-    const idx = STATUS_FLOW.indexOf(app.status);
-    if (idx >= 0 && idx < STATUS_FLOW.length - 1) {
-        app.status = STATUS_FLOW[idx + 1];
-        saveApps();
-        showToast(`${app.company} → ${statusLabels[app.status]} 🎉`);
-    }
+function deleteItem(id) {
+    const item = items.find(i => i.id === id);
+    items = items.filter(i => i.id !== id);
+    saveItems();
+    showToast(`Deleted "${item ? item.title : 'item'}" 🗑`);
 }
 
 function readForm() {
     return {
-        company: document.getElementById('company').value.trim(),
-        position: document.getElementById('position').value.trim(),
+        title: document.getElementById('title').value.trim(),
         status: document.getElementById('status').value,
-        location: document.getElementById('location').value.trim(),
         notes: document.getElementById('notes').value.trim()
     };
 }
@@ -193,17 +229,16 @@ function readForm() {
 function resetForm() {
     form.reset();
     editingId = null;
-    submitBtn.textContent = '💾 Add Application';
+    submitBtn.textContent = '💾 Add Item';
     cancelEditBtn.classList.add('hidden');
-    document.getElementById('company').focus();
+    renderStatusSelect();
+    document.getElementById('title').focus();
 }
 
-function fillForm(app) {
-    document.getElementById('company').value = app.company || '';
-    document.getElementById('position').value = app.position || '';
-    document.getElementById('status').value = app.status || 'applied';
-    document.getElementById('location').value = app.location || '';
-    document.getElementById('notes').value = app.notes || '';
+function fillForm(item) {
+    document.getElementById('title').value = item.title || '';
+    document.getElementById('status').value = item.status || columns[0].id;
+    document.getElementById('notes').value = item.notes || '';
     submitBtn.textContent = '✏️ Save Changes';
     cancelEditBtn.classList.remove('hidden');
     document.getElementById('app-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -212,53 +247,164 @@ function fillForm(app) {
 form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = readForm();
-
+    if (!data.title) return;
     if (editingId) {
-        updateApp(editingId, data);
+        updateItem(editingId, data);
         resetForm();
     } else {
-        addApp(data);
+        addItem(data);
         resetForm();
     }
-    render();
+    renderBoard();
 });
 
 cancelEditBtn.addEventListener('click', resetForm);
 
-appList.addEventListener('click', (e) => {
+board.addEventListener('click', (e) => {
     const btn = e.target.closest('.action-btn');
     if (!btn) return;
     const id = btn.dataset.id;
     const action = btn.dataset.action;
 
     if (action === 'delete') {
-        if (confirm('Delete this application?')) {
-            deleteApp(id);
+        if (confirm('Delete this item?')) {
+            deleteItem(id);
             if (editingId === id) resetForm();
-            render();
+            renderBoard();
         }
     } else if (action === 'promote') {
-        promoteApp(id);
-        render();
+        const item = items.find(i => i.id === id);
+        if (item) setStatus(id, nextCol(colById(item.status)).id);
     } else if (action === 'edit') {
-        const app = apps.find(a => a.id === id);
-        if (app) {
+        const item = items.find(i => i.id === id);
+        if (item) {
             editingId = id;
-            fillForm(app);
+            fillForm(item);
         }
     }
 });
 
-document.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        currentFilter = chip.dataset.filter;
-        render();
-    });
+searchInput.addEventListener('input', () => {
+    currentSearch = searchInput.value;
+    renderBoard();
 });
 
-searchInput.addEventListener('input', render);
+/* Drag & drop */
+board.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.app-card');
+    if (card) e.dataTransfer.setData('text/plain', card.dataset.id);
+});
 
-loadApps();
-render();
+/* ---- Settings / column editor ---- */
+const settingsModal = document.getElementById('settings-modal');
+const columnsEditor = document.getElementById('columns-editor');
+
+document.getElementById('open-settings').addEventListener('click', () => {
+    renderColumnsEditor();
+    settingsModal.classList.add('open');
+});
+document.getElementById('close-settings').addEventListener('click', closeSettings);
+document.getElementById('done-settings').addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) closeSettings();
+});
+
+function closeSettings() {
+    settingsModal.classList.remove('open');
+}
+
+function renderColumnsEditor() {
+    columnsEditor.innerHTML = '';
+    columns.forEach((col, idx) => {
+        const row = document.createElement('div');
+        row.className = 'column-editor-row';
+
+        const emoji = document.createElement('input');
+        emoji.type = 'text';
+        emoji.className = 'col-emoji';
+        emoji.value = col.emoji || '';
+        emoji.placeholder = '🎯';
+        emoji.maxLength = 4;
+
+        const name = document.createElement('input');
+        name.type = 'text';
+        name.className = 'col-name';
+        name.value = col.name;
+        name.placeholder = 'Column name';
+
+        const up = document.createElement('button');
+        up.type = 'button';
+        up.className = 'col-move';
+        up.disabled = idx === 0;
+        up.textContent = '↑';
+
+        const down = document.createElement('button');
+        down.type = 'button';
+        down.className = 'col-move';
+        down.disabled = idx === columns.length - 1;
+        down.textContent = '↓';
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'col-delete';
+        del.textContent = '🗑';
+
+        row.append(emoji, name, up, down, del);
+        columnsEditor.appendChild(row);
+
+        const applyFromRow = () => {
+            col.emoji = emoji.value.trim();
+            col.name = name.value.trim() || 'Column';
+        };
+
+        name.addEventListener('input', applyFromRow);
+        emoji.addEventListener('input', applyFromRow);
+
+        up.addEventListener('click', () => {
+            if (idx > 0) {
+                [columns[idx - 1], columns[idx]] = [columns[idx], columns[idx - 1]];
+                saveColumnChanges();
+                renderColumnsEditor();
+                renderBoard();
+            }
+        });
+        down.addEventListener('click', () => {
+            if (idx < columns.length - 1) {
+                [columns[idx + 1], columns[idx]] = [columns[idx], columns[idx + 1]];
+                saveColumnChanges();
+                renderColumnsEditor();
+                renderBoard();
+            }
+        });
+        del.addEventListener('click', () => {
+            if (columns.length <= 1) {
+                showToast('You need at least one column ⚠️');
+                return;
+            }
+            if (!confirm(`Delete column "${col.name}"? Its items will be moved to the first column.`)) return;
+            columns = columns.filter(c => c.id !== col.id);
+            items.forEach(i => {
+                if (i.status === col.id) i.status = columns[0].id;
+            });
+            saveColumnChanges();
+            saveItems();
+            renderColumnsEditor();
+            renderBoard();
+        });
+    });
+}
+
+document.getElementById('add-column').addEventListener('click', () => {
+    columns.push({ id: uid(), name: 'New Column', emoji: '🌟' });
+    saveColumnChanges();
+    renderColumnsEditor();
+    renderBoard();
+});
+
+function saveColumnChanges() {
+    saveColumns();
+    renderBoard();
+}
+
+loadData();
+renderBoard();
