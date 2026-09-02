@@ -11,6 +11,7 @@ const statusLabels = {
     interview: 'Interview',
     offer: 'Offer',
     rejected: 'Rejected'
+
 };
 
 const statusEmojis = {
