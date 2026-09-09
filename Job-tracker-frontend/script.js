@@ -58,6 +58,7 @@ function logoutUser() {
     localStorage.removeItem(CURRENT_USER_KEY);
     renderUserUI();
     renderBoard();
+    showPreloginIfNeeded();
     showToast('Logged out');
 }
 
@@ -259,6 +260,27 @@ const userDisplay = document.getElementById('user-display');
 const openAuthBtn = document.getElementById('open-auth');
 const closeAuthBtn = document.getElementById('close-auth');
 const logoutBtn = document.getElementById('logout-btn');
+const prelogin = document.getElementById('prelogin');
+const preloginOpen = document.getElementById('prelogin-open-auth');
+const preloginGuest = document.getElementById('prelogin-guest');
+
+function showPreloginIfNeeded() {
+    if (!currentUser) {
+        prelogin.classList.remove('hidden');
+        document.querySelector('main.container').classList.add('blurred');
+    } else {
+        prelogin.classList.add('hidden');
+        document.querySelector('main.container').classList.remove('blurred');
+    }
+}
+
+preloginOpen.addEventListener('click', () => openAuth('login'));
+preloginGuest.addEventListener('click', () => {
+    setCurrentUser({ id: 'guest', name: 'Guest', email: '' });
+    renderUserUI();
+    renderBoard();
+    showPreloginIfNeeded();
+});
 
 function renderUserUI() {
     if (currentUser) {
@@ -271,6 +293,12 @@ function renderUserUI() {
         openAuthBtn.classList.remove('hidden');
         logoutBtn.classList.add('hidden');
     }
+}
+
+// call after user UI changes
+function refreshAuthState() {
+    renderUserUI();
+    showPreloginIfNeeded();
 }
 
 function openAuth(mode = 'login') {
@@ -321,8 +349,7 @@ authForm.addEventListener('submit', (e) => {
         setCurrentUser({ id: user.id, name: user.name, email: user.email });
         showToast(`Logged in as ${user.name || user.email}`);
         closeAuth();
-        renderUserUI();
-        renderBoard();
+        refreshAuthState();
         return;
     }
 
@@ -337,8 +364,7 @@ authForm.addEventListener('submit', (e) => {
     setCurrentUser({ id: newUser.id, name: newUser.name, email: newUser.email });
     showToast(`Account created — welcome ${newUser.name}`);
     closeAuth();
-    renderUserUI();
-    renderBoard();
+    refreshAuthState();
 });
 
 function readForm() {
@@ -533,3 +559,4 @@ loadData();
 loadUsers();
 renderUserUI();
 renderBoard();
+showPreloginIfNeeded();
