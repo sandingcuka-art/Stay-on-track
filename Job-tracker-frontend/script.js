@@ -3,6 +3,10 @@ const COLS_KEY = 'stayOnTrackColumns';
 const USERS_KEY = 'stayOnTrackUsers';
 const CURRENT_USER_KEY = 'stayOnTrackCurrentUser';
 
+function getUserItemsKey(userId) {
+    return userId ? `stayOnTrackItems_${userId}` : 'stayOnTrackItems_guest';
+}
+
 let items = [];
 let columns = [];
 let currentSearch = '';
@@ -26,11 +30,11 @@ const statusSelect = document.getElementById('status');
 const toast = document.getElementById('toast');
 
 function loadData() {
+    const key = getUserItemsKey(currentUser ? currentUser.id : 'guest');
     try {
-        items = JSON.parse(localStorage.getItem(ITEMS_KEY)) || [];
+        items = JSON.parse(localStorage.getItem(key)) || [];
     } catch (e) { items = []; }
-    // Backwards compatibility: ensure every item has a userId
-    items = items.map(i => i.userId ? i : Object.assign({}, i, { userId: 'guest' }));
+
     try {
         columns = JSON.parse(localStorage.getItem(COLS_KEY)) || null;
     } catch (e) { columns = null; }
@@ -51,6 +55,7 @@ function saveUsers() {
 function setCurrentUser(u) {
     currentUser = u;
     localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
+    loadData();
 }
 
 function logoutUser() {
@@ -63,7 +68,10 @@ function logoutUser() {
 }
 
 function saveItems() {
-    localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+    if (!currentUser) {
+        return;
+    }
+    localStorage.setItem(getUserItemsKey(currentUser.id), JSON.stringify(items));
 }
 
 function saveColumns() {
@@ -102,7 +110,12 @@ function colById(id) {
 }
 
 function renderStats() {
-    const visibleItems = items.filter(i => (currentUser ? i.userId === currentUser.id : i.userId === 'guest'));
+    if (!currentUser) {
+        stats.innerHTML = '';
+        return;
+    }
+
+    const visibleItems = items.filter(i => i.userId === currentUser.id);
     const total = visibleItems.length;
     const countFor = (id) => visibleItems.filter(i => i.status === id).length;
 
@@ -140,6 +153,11 @@ function renderStatusSelect() {
 }
 
 function renderBoard() {
+    if (!currentUser) {
+        board.innerHTML = '';
+        return;
+    }
+
     renderStatusSelect();
     renderStats();
 
@@ -152,7 +170,7 @@ function renderBoard() {
         column.className = 'kanban-column';
         column.dataset.col = col.id;
 
-        let colItems = items.filter(i => i.status === col.id && (currentUser ? i.userId === currentUser.id : i.userId === 'guest'));
+        let colItems = items.filter(i => i.status === col.id && i.userId === currentUser.id);
         if (query) {
             colItems = colItems.filter(i =>
                 (i.title || '').toLowerCase().includes(query) ||
@@ -294,7 +312,9 @@ function renderUserUI() {
 
 // call after user UI changes
 function refreshAuthState() {
+    loadData();
     renderUserUI();
+    renderBoard();
     showPreloginIfNeeded();
 }
 
