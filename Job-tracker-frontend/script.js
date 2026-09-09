@@ -265,12 +265,13 @@ const preloginOpen = document.getElementById('prelogin-open-auth');
 const preloginGuest = document.getElementById('prelogin-guest');
 
 function showPreloginIfNeeded() {
+    const appContainer = document.querySelector('main.container');
     if (!currentUser) {
         prelogin.classList.remove('hidden');
-        document.querySelector('main.container').classList.add('blurred');
+        appContainer.classList.add('hidden');
     } else {
         prelogin.classList.add('hidden');
-        document.querySelector('main.container').classList.remove('blurred');
+        appContainer.classList.remove('hidden');
     }
 }
 

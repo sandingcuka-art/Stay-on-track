@@ -705,3 +705,50 @@ body {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
 }
+
+/* Pre-login / landing screen */
+.prelogin-screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,245,255,0.9));
+    z-index: 300;
+}
+
+.prelogin-card {
+    display: flex;
+    gap: 20px;
+    width: min(1000px, 92%);
+    padding: 28px;
+    align-items: center;
+}
+
+.prelogin-left {
+    flex: 1;
+}
+
+.prelogin-left .lead {
+    margin: 10px 0 18px;
+    color: var(--purple-500);
+    font-weight: 600;
+}
+
+.prelogin-right {
+    width: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.prelogin-right img {
+    width: 100%;
+    border-radius: 12px;
+}
+
+.container.hidden {
+    display: none !important;
+}
+
+.prelogin-screen.hidden { display: none !important; }
