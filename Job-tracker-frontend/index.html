@@ -75,7 +75,10 @@
             <div class="prelogin-left">
                 <h1>Stay on <span class="highlight">Track</span></h1>
                 <p class="lead">Sign in to access your boards and saved tasks.</p>
-                <button id="prelogin-open-auth" class="btn btn-primary">Log in</button>
+                <div class="auth-choice-row">
+                    <button id="prelogin-login" class="btn btn-primary">Log in</button>
+                    <button id="prelogin-signup" class="btn btn-secondary">Sign up</button>
+                </div>
                 <p class="muted">Or continue as <button id="prelogin-guest" class="chip">Guest</button></p>
             </div>
             <div class="prelogin-right">
@@ -109,8 +112,8 @@
             <form id="auth-form">
                 <div class="auth-fields">
                     <div class="form-group auth-name hidden">
-                        <label for="auth-name">Name</label>
-                        <input type="text" id="auth-name" placeholder="Your name">
+                        <label for="auth-name">Full name</label>
+                        <input type="text" id="auth-name" placeholder="Your full name" required>
                     </div>
                     <div class="form-group">
                         <label for="auth-email">Email</label>
@@ -123,7 +126,7 @@
                 </div>
                 <input type="hidden" id="auth-mode" value="login">
                 <button type="submit" class="btn btn-primary" id="auth-submit">Log in</button>
-                <button type="button" class="btn btn-secondary" id="auth-toggle">Create account</button>
+                <button type="button" class="btn btn-secondary" id="auth-toggle">Need an account? Sign up</button>
             </form>
         </div>
     </div>

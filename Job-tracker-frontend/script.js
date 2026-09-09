@@ -256,12 +256,14 @@ const authModeInput = document.getElementById('auth-mode');
 const authTitle = document.getElementById('auth-title');
 const authToggle = document.getElementById('auth-toggle');
 const authNameRow = document.querySelector('.auth-name');
+const authNameInput = document.getElementById('auth-name');
 const userDisplay = document.getElementById('user-display');
 const openAuthBtn = document.getElementById('open-auth');
 const closeAuthBtn = document.getElementById('close-auth');
 const logoutBtn = document.getElementById('logout-btn');
 const prelogin = document.getElementById('prelogin');
-const preloginOpen = document.getElementById('prelogin-open-auth');
+const preloginLogin = document.getElementById('prelogin-login');
+const preloginSignup = document.getElementById('prelogin-signup');
 const preloginGuest = document.getElementById('prelogin-guest');
 
 function showPreloginIfNeeded() {
@@ -275,7 +277,8 @@ function showPreloginIfNeeded() {
     }
 }
 
-preloginOpen.addEventListener('click', () => openAuth('login'));
+preloginLogin.addEventListener('click', () => openAuth('login'));
+preloginSignup.addEventListener('click', () => openAuth('register'));
 preloginGuest.addEventListener('click', () => {
     setCurrentUser({ id: 'guest', name: 'Guest', email: '' });
     renderUserUI();
@@ -304,18 +307,21 @@ function refreshAuthState() {
 
 function openAuth(mode = 'login') {
     authModeInput.value = mode;
-    authTitle.textContent = mode === 'login' ? 'Log in' : 'Create account';
+    authTitle.textContent = mode === 'login' ? 'Log in' : 'Sign up';
     document.getElementById('auth-email').value = '';
     document.getElementById('auth-password').value = '';
     document.getElementById('auth-name').value = '';
+
     if (mode === 'register') {
         authNameRow.classList.remove('hidden');
-        authForm.querySelector('#auth-submit').textContent = 'Create account';
-        authToggle.textContent = 'Have an account? Log in';
+        authNameInput.required = true;
+        authForm.querySelector('#auth-submit').textContent = 'Sign up';
+        authToggle.textContent = 'Already have an account? Log in';
     } else {
         authNameRow.classList.add('hidden');
+        authNameInput.required = false;
         authForm.querySelector('#auth-submit').textContent = 'Log in';
-        authToggle.textContent = 'Create account';
+        authToggle.textContent = 'Need an account? Sign up';
     }
     authModal.classList.add('open');
 }
