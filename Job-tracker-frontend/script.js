@@ -1,10 +1,14 @@
 const ITEMS_KEY = 'stayOnTrackItems';
 const COLS_KEY = 'stayOnTrackColumns';
+const USERS_KEY = 'stayOnTrackUsers';
+const CURRENT_USER_KEY = 'stayOnTrackCurrentUser';
 
 let items = [];
 let columns = [];
 let currentSearch = '';
 let editingId = null;
+let users = [];
+let currentUser = null;
 
 const DEFAULT_COLUMNS = [
     { id: 'todo', name: 'To Do', emoji: '📝' },
@@ -25,12 +29,36 @@ function loadData() {
     try {
         items = JSON.parse(localStorage.getItem(ITEMS_KEY)) || [];
     } catch (e) { items = []; }
+    // Backwards compatibility: ensure every item has a userId
+    items = items.map(i => i.userId ? i : Object.assign({}, i, { userId: 'guest' }));
     try {
         columns = JSON.parse(localStorage.getItem(COLS_KEY)) || null;
     } catch (e) { columns = null; }
     if (!columns || !Array.isArray(columns) || columns.length === 0) {
         columns = clone(DEFAULT_COLUMNS);
     }
+}
+
+function loadUsers() {
+    try { users = JSON.parse(localStorage.getItem(USERS_KEY)) || []; } catch (e) { users = []; }
+    try { currentUser = JSON.parse(localStorage.getItem(CURRENT_USER_KEY)) || null; } catch (e) { currentUser = null; }
+}
+
+function saveUsers() {
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function setCurrentUser(u) {
+    currentUser = u;
+    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(u));
+}
+
+function logoutUser() {
+    currentUser = null;
+    localStorage.removeItem(CURRENT_USER_KEY);
+    renderUserUI();
+    renderBoard();
+    showToast('Logged out');
 }
 
 function saveItems() {
@@ -73,8 +101,9 @@ function colById(id) {
 }
 
 function renderStats() {
-    const total = items.length;
-    const countFor = (id) => items.filter(i => i.status === id).length;
+    const visibleItems = items.filter(i => (currentUser ? i.userId === currentUser.id : i.userId === 'guest'));
+    const total = visibleItems.length;
+    const countFor = (id) => visibleItems.filter(i => i.status === id).length;
 
     let html = `
         <div class="stat-card">
@@ -122,7 +151,7 @@ function renderBoard() {
         column.className = 'kanban-column';
         column.dataset.col = col.id;
 
-        let colItems = items.filter(i => i.status === col.id);
+        let colItems = items.filter(i => i.status === col.id && (currentUser ? i.userId === currentUser.id : i.userId === 'guest'));
         if (query) {
             colItems = colItems.filter(i =>
                 (i.title || '').toLowerCase().includes(query) ||
@@ -194,7 +223,8 @@ function addItem(data) {
         title: data.title,
         status: data.status,
         notes: data.notes || '',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        userId: currentUser ? currentUser.id : 'guest'
     };
     items.push(item);
     saveItems();
@@ -217,6 +247,99 @@ function deleteItem(id) {
     saveItems();
     showToast(`Deleted "${item ? item.title : 'item'}" 🗑`);
 }
+
+/* ---- Auth UI + storage ---- */
+const authModal = document.getElementById('auth-modal');
+const authForm = document.getElementById('auth-form');
+const authModeInput = document.getElementById('auth-mode');
+const authTitle = document.getElementById('auth-title');
+const authToggle = document.getElementById('auth-toggle');
+const authNameRow = document.querySelector('.auth-name');
+const userDisplay = document.getElementById('user-display');
+const openAuthBtn = document.getElementById('open-auth');
+const closeAuthBtn = document.getElementById('close-auth');
+const logoutBtn = document.getElementById('logout-btn');
+
+function renderUserUI() {
+    if (currentUser) {
+        userDisplay.textContent = currentUser.name || currentUser.email;
+        userDisplay.classList.remove('hidden');
+        openAuthBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+    } else {
+        userDisplay.classList.add('hidden');
+        openAuthBtn.classList.remove('hidden');
+        logoutBtn.classList.add('hidden');
+    }
+}
+
+function openAuth(mode = 'login') {
+    authModeInput.value = mode;
+    authTitle.textContent = mode === 'login' ? 'Log in' : 'Create account';
+    document.getElementById('auth-email').value = '';
+    document.getElementById('auth-password').value = '';
+    document.getElementById('auth-name').value = '';
+    if (mode === 'register') {
+        authNameRow.classList.remove('hidden');
+        authForm.querySelector('#auth-submit').textContent = 'Create account';
+        authToggle.textContent = 'Have an account? Log in';
+    } else {
+        authNameRow.classList.add('hidden');
+        authForm.querySelector('#auth-submit').textContent = 'Log in';
+        authToggle.textContent = 'Create account';
+    }
+    authModal.classList.add('open');
+}
+
+function closeAuth() {
+    authModal.classList.remove('open');
+}
+
+authToggle.addEventListener('click', () => {
+    openAuth(authModeInput.value === 'login' ? 'register' : 'login');
+});
+
+openAuthBtn.addEventListener('click', () => openAuth('login'));
+closeAuthBtn.addEventListener('click', closeAuth);
+authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuth(); });
+logoutBtn.addEventListener('click', logoutUser);
+
+authForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const mode = authModeInput.value;
+    const email = document.getElementById('auth-email').value.trim().toLowerCase();
+    const password = document.getElementById('auth-password').value;
+    const name = document.getElementById('auth-name').value.trim();
+    if (!email || !password) return;
+
+    if (mode === 'login') {
+        const user = users.find(u => u.email === email && u.password === btoa(password));
+        if (!user) {
+            showToast('Invalid credentials');
+            return;
+        }
+        setCurrentUser({ id: user.id, name: user.name, email: user.email });
+        showToast(`Logged in as ${user.name || user.email}`);
+        closeAuth();
+        renderUserUI();
+        renderBoard();
+        return;
+    }
+
+    // register
+    if (users.some(u => u.email === email)) {
+        showToast('An account with that email already exists');
+        return;
+    }
+    const newUser = { id: uid(), name: name || email.split('@')[0], email, password: btoa(password) };
+    users.push(newUser);
+    saveUsers();
+    setCurrentUser({ id: newUser.id, name: newUser.name, email: newUser.email });
+    showToast(`Account created — welcome ${newUser.name}`);
+    closeAuth();
+    renderUserUI();
+    renderBoard();
+});
 
 function readForm() {
     return {
@@ -407,4 +530,6 @@ function saveColumnChanges() {
 }
 
 loadData();
+loadUsers();
+renderUserUI();
 renderBoard();

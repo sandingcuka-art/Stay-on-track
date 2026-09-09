@@ -121,6 +121,21 @@ body {
     animation: wiggle 3s ease-in-out infinite;
 }
 
+.user-controls {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: 18px;
+}
+
+.user-badge {
+    background: linear-gradient(90deg, var(--pink-500), var(--purple-500));
+    color: white;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
 @keyframes wiggle {
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(-12deg); }
@@ -551,6 +566,16 @@ body {
     max-width: 460px;
     max-height: 85vh;
     overflow-y: auto;
+}
+
+.auth-fields .auth-name {
+    margin-bottom: 12px;
+}
+
+.auth-name.hidden,
+.user-badge.hidden,
+#logout-btn.hidden {
+    display: none !important;
 }
 
 .modal-header {
