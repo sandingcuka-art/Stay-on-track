@@ -264,7 +264,6 @@ const logoutBtn = document.getElementById('logout-btn');
 const prelogin = document.getElementById('prelogin');
 const preloginLogin = document.getElementById('prelogin-login');
 const preloginSignup = document.getElementById('prelogin-signup');
-const preloginGuest = document.getElementById('prelogin-guest');
 
 function showPreloginIfNeeded() {
     const appContainer = document.querySelector('main.container');
@@ -279,12 +278,6 @@ function showPreloginIfNeeded() {
 
 preloginLogin.addEventListener('click', () => openAuth('login'));
 preloginSignup.addEventListener('click', () => openAuth('register'));
-preloginGuest.addEventListener('click', () => {
-    setCurrentUser({ id: 'guest', name: 'Guest', email: '' });
-    renderUserUI();
-    renderBoard();
-    showPreloginIfNeeded();
-});
 
 function renderUserUI() {
     if (currentUser) {
@@ -323,11 +316,16 @@ function openAuth(mode = 'login') {
         authForm.querySelector('#auth-submit').textContent = 'Log in';
         authToggle.textContent = 'Need an account? Sign up';
     }
+
+    prelogin.classList.add('hidden');
     authModal.classList.add('open');
 }
 
 function closeAuth() {
     authModal.classList.remove('open');
+    if (!currentUser) {
+        showPreloginIfNeeded();
+    }
 }
 
 authToggle.addEventListener('click', () => {
