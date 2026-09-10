@@ -1,0 +1,16 @@
+{
+  "name": "stay-on-track-api",
+  "version": "1.0.0",
+  "description": "Backend API for the Stay on Track task app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "sqlite3": "^5.1.7"
+  }
+}
